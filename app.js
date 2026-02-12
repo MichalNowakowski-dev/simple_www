@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const { Pool } = require("pg");
+const path = require("path");
 
 const app = express();
 const port = 3000; // Port, na którym będzie działać Twoja apka
@@ -16,32 +17,20 @@ const pool = new Pool({
 
 app.use(express.json());
 
-// Endpoint: Pobieranie wszystkich zadań
+// MAGIA: To serwuje index.html automatycznie pod adresem "/"
+app.use(express.static(path.join(__dirname, "public")));
+
+// API: Pobieranie
 app.get("/zadania", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM zadania ORDER BY id ASC");
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Błąd serwera przy pobieraniu danych");
-  }
+  const result = await pool.query("SELECT * FROM zadania ORDER BY id DESC");
+  res.json(result.rows);
 });
 
-// Endpoint: Dodawanie nowego zadania (prosty CRUD)
+// API: Dodawanie
 app.post("/zadania", async (req, res) => {
   const { tytul } = req.body;
-  try {
-    const result = await pool.query(
-      "INSERT INTO zadania (tytul) VALUES ($1) RETURNING *",
-      [tytul],
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Błąd przy dodawaniu zadania");
-  }
+  await pool.query("INSERT INTO zadania (tytul) VALUES ($1)", [tytul]);
+  res.status(201).send();
 });
 
-app.listen(port, () => {
-  console.log(`Serwer działa na http://localhost:${port}`);
-});
+app.listen(port, () => console.log(`API działa na porcie ${port}`));

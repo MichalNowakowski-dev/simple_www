@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mój Czysty CRUD</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 20px;
+        background: #f9f9f9;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+      }
+      form {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+      }
+      li {
+        background: #fff;
+        border-bottom: 1px solid #eee;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Lista zadań</h1>
+      <form id="zadanieForm">
+        <input
+          type="text"
+          id="tytulInput"
+          placeholder="Co trzeba zrobić?"
+          required
+        />
+        <button type="submit">Dodaj</button>
+      </form>
+      <ul id="listaZadan"></ul>
+    </div>
+
+    <script>
+      // Funkcja pobierająca zadania
+      async function fetchZadania() {
+        const res = await fetch("/zadania");
+        const data = await res.json();
+        const list = document.getElementById("listaZadan");
+        list.innerHTML = data
+          .map(
+            (z) =>
+              `<li>${z.tytul} <span>${z.zrobione ? "✅" : "⏳"}</span></li>`,
+          )
+          .join("");
+      }
+
+      // Obsługa formularza (bez przeładowania strony!)
+      document.getElementById("zadanieForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const tytul = document.getElementById("tytulInput").value;
+
+        await fetch("/zadania", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tytul }),
+        });
+
+        document.getElementById("tytulInput").value = "";
+        fetchZadania(); // Odśwież listę
+      };
+
+      fetchZadania(); // Załaduj na starcie
+    </script>
+  </body>
+</html>
