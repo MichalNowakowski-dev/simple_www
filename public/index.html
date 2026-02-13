@@ -2,152 +2,101 @@
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
-    <title>Mój Czysty CRUD</title>
+    <title>Ewidencja Wpłat</title>
     <style>
       body {
         font-family: sans-serif;
         max-width: 600px;
         margin: 40px auto;
         padding: 20px;
-        background: #f9f9f9;
       }
-      .container {
-        background: white;
-        padding: 20px;
+      .summary {
+        background: #f4f4f4;
+        padding: 15px;
         border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      }
-      h1 {
-        color: #333;
-      }
-      form {
-        display: flex;
-        gap: 10px;
         margin-bottom: 20px;
+        font-size: 1.2em;
       }
-      input {
-        flex: 1;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
-      button {
-        padding: 10px 20px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      button:hover {
-        background: #0056b3;
-      }
-      ul {
-        list-style: none;
-        padding: 0;
-      }
-      li {
-        background: #fff;
-        border-bottom: 1px solid #eee;
-        padding: 10px;
+      .payment-item {
+        border-bottom: 1px solid #ddd;
+        padding: 10px 0;
         display: flex;
         justify-content: space-between;
+      }
+      input {
+        padding: 8px;
+        margin-right: 10px;
+      }
+      button {
+        padding: 8px 15px;
+        background: #28a745;
+        color: white;
+        border: none;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <h1>Lista zadań</h1>
-      <form id="zadanieForm">
-        <input
-          type="text"
-          id="tytulInput"
-          placeholder="Co trzeba zrobić?"
-          required
-        />
-        <input type="datetime-local" id="terminInput" />
-        <button type="submit">Dodaj</button>
-      </form>
-      <ul id="listaZadan"></ul>
-      <div
-        id="billing-box"
-        style="
-          background: #e9ecef;
-          padding: 15px;
-          border-radius: 8px;
-          margin-bottom: 20px;
-        "
-      >
-        <strong>Stan konta:</strong> <span id="balance">Ładowanie...</span> PLN
-      </div>
+    <h2>Rejestracja Wpłaty</h2>
+
+    <div class="summary">
+      <strong>Razem zebrano: <span id="total-amount">0.00</span> PLN</strong>
     </div>
 
-    <script>
-      async function fetchZadania() {
-        const res = await fetch("/zadania");
-        const data = await res.json();
-        const list = document.getElementById("listaZadan");
+    <div id="form">
+      <input type="text" id="person" placeholder="Imię i Nazwisko" />
+      <input
+        type="number"
+        id="amount"
+        step="0.01"
+        placeholder="Kwota (np. 50.00)"
+      />
+      <button onclick="addPayment()">Wpłać</button>
+    </div>
 
-        list.innerHTML = data
-          .map((z) => {
-            const dataFormat = z.termin
-              ? new Date(z.termin).toLocaleString()
-              : "Brak daty";
-            return `
-                <li style="${z.zrobione ? "text-decoration: line-through; color: gray;" : ""}">
-                    <div>
-                        <input type="checkbox" ${z.zrobione ? "checked" : ""} 
-                            onchange="toggleZadanie(${z.id}, this.checked)">
-                        <strong>${z.tytul}</strong> 
-                        <small>(${dataFormat})</small>
-                    </div>
-                </li>
-            `;
-          })
+    <h3>Lista ostatnich wpłat:</h3>
+    <div id="payments-list"></div>
+
+    <script>
+      async function loadData() {
+        const res = await fetch("/api/payments");
+        const data = await res.json();
+
+        document.getElementById("total-amount").innerText = parseFloat(
+          data.total,
+        ).toFixed(2);
+
+        const list = document.getElementById("payments-list");
+        list.innerHTML = data.list
+          .map(
+            (p) => `
+                <div class="payment-item">
+                    <span><strong>${p.person}</strong></span>
+                    <span>${parseFloat(p.amount).toFixed(2)} PLN</span>
+                </div>
+            `,
+          )
           .join("");
       }
 
-      // Nowa funkcja zmiany statusu
-      async function toggleZadanie(id, zrobione) {
-        await fetch(`/zadania/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ zrobione }),
-        });
-        fetchZadania();
-      }
+      async function addPayment() {
+        const person = document.getElementById("person").value;
+        const amount = document.getElementById("amount").value;
 
-      document.getElementById("zadanieForm").onsubmit = async (e) => {
-        e.preventDefault();
-        const tytul = document.getElementById("tytulInput").value;
-        const termin = document.getElementById("terminInput").value;
+        if (!person || !amount) return alert("Wypełnij pola!");
 
-        await fetch("/zadania", {
+        await fetch("/api/payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tytul, termin }),
+          body: JSON.stringify({ person, amount }),
         });
 
-        document.getElementById("tytulInput").value = "";
-        document.getElementById("terminInput").value = "";
-        fetchZadania();
-      };
-      async function fetchBilling() {
-        try {
-          const res = await fetch("/api/billing");
-          const data = await res.json();
-          // Wyświetlamy np. BalanceGrossValue (wartość brutto)
-          document.getElementById("balance").innerText =
-            data.BalanceGrossValue.toFixed(2);
-        } catch (err) {
-          document.getElementById("balance").innerText = "Błąd";
-        }
+        document.getElementById("person").value = "";
+        document.getElementById("amount").value = "";
+        loadData();
       }
 
-      // Wywołaj funkcję przy starcie
-      fetchBilling();
-
-      fetchZadania();
+      loadData();
     </script>
   </body>
 </html>
