@@ -69,6 +69,17 @@
         <button type="submit">Dodaj</button>
       </form>
       <ul id="listaZadan"></ul>
+      <div
+        id="billing-box"
+        style="
+          background: #e9ecef;
+          padding: 15px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+        "
+      >
+        <strong>Stan konta:</strong> <span id="balance">Ładowanie...</span> PLN
+      </div>
     </div>
 
     <script>
@@ -121,6 +132,20 @@
         document.getElementById("terminInput").value = "";
         fetchZadania();
       };
+      async function fetchBilling() {
+        try {
+          const res = await fetch("/api/billing");
+          const data = await res.json();
+          // Wyświetlamy np. BalanceGrossValue (wartość brutto)
+          document.getElementById("balance").innerText =
+            data.BalanceGrossValue.toFixed(2);
+        } catch (err) {
+          document.getElementById("balance").innerText = "Błąd";
+        }
+      }
+
+      // Wywołaj funkcję przy starcie
+      fetchBilling();
 
       fetchZadania();
     </script>

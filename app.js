@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const { Pool } = require("pg");
-const path = require("path");
+const axios = require("axios");
 
 const app = express();
 const port = 3000; // Port, na którym będzie działać Twoja apka
@@ -16,9 +16,6 @@ const pool = new Pool({
 });
 
 app.use(express.json());
-
-// MAGIA: To serwuje index.html automatycznie pod adresem "/"
-app.use(express.static(path.join(__dirname, "public")));
 
 // API: Pobieranie (teraz z sortowaniem po dacie)
 app.get("/zadania", async (req, res) => {
@@ -59,6 +56,36 @@ app.patch("/zadania/:id", async (req, res) => {
     res.send();
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/billing", async (req, res) => {
+  try {
+    // 1. Pobieranie tokena dostępu
+    const authResponse = await axios.post(
+      "https://idp.oktawave.com/auth/realms/oktawave/protocol/openid-connect/token",
+      new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: process.env.OKTAWAVE_CLIENT_ID,
+        client_secret: process.env.OKTAWAVE_CLIENT_SECRET,
+      }).toString(),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
+    );
+
+    const token = authResponse.data.access_token;
+
+    // 2. Pobieranie bilingu przy użyciu tokena
+    const billingResponse = await axios.get(
+      "https://pl1-api.oktawave.com/billing/balance",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    res.json(billingResponse.data);
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({ error: "Nie udało się pobrać danych bilingowych" });
   }
 });
 
