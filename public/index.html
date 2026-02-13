@@ -65,41 +65,64 @@
           placeholder="Co trzeba zrobić?"
           required
         />
+        <input type="datetime-local" id="terminInput" />
         <button type="submit">Dodaj</button>
       </form>
       <ul id="listaZadan"></ul>
     </div>
 
     <script>
-      // Funkcja pobierająca zadania
       async function fetchZadania() {
         const res = await fetch("/zadania");
         const data = await res.json();
         const list = document.getElementById("listaZadan");
+
         list.innerHTML = data
-          .map(
-            (z) =>
-              `<li>${z.tytul} <span>${z.zrobione ? "✅" : "⏳"}</span></li>`,
-          )
+          .map((z) => {
+            const dataFormat = z.termin
+              ? new Date(z.termin).toLocaleString()
+              : "Brak daty";
+            return `
+                <li style="${z.zrobione ? "text-decoration: line-through; color: gray;" : ""}">
+                    <div>
+                        <input type="checkbox" ${z.zrobione ? "checked" : ""} 
+                            onchange="toggleZadanie(${z.id}, this.checked)">
+                        <strong>${z.tytul}</strong> 
+                        <small>(${dataFormat})</small>
+                    </div>
+                </li>
+            `;
+          })
           .join("");
       }
 
-      // Obsługa formularza (bez przeładowania strony!)
+      // Nowa funkcja zmiany statusu
+      async function toggleZadanie(id, zrobione) {
+        await fetch(`/zadania/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ zrobione }),
+        });
+        fetchZadania();
+      }
+
       document.getElementById("zadanieForm").onsubmit = async (e) => {
         e.preventDefault();
         const tytul = document.getElementById("tytulInput").value;
+        const termin = document.getElementById("terminInput").value;
 
         await fetch("/zadania", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tytul }),
+          body: JSON.stringify({ tytul, termin }),
         });
 
         document.getElementById("tytulInput").value = "";
-        fetchZadania(); // Odśwież listę
+        document.getElementById("terminInput").value = "";
+        fetchZadania();
       };
 
-      fetchZadania(); // Załaduj na starcie
+      fetchZadania();
     </script>
   </body>
 </html>

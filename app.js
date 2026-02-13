@@ -20,17 +20,46 @@ app.use(express.json());
 // MAGIA: To serwuje index.html automatycznie pod adresem "/"
 app.use(express.static(path.join(__dirname, "public")));
 
-// API: Pobieranie
+// API: Pobieranie (teraz z sortowaniem po dacie)
 app.get("/zadania", async (req, res) => {
-  const result = await pool.query("SELECT * FROM zadania ORDER BY id DESC");
-  res.json(result.rows);
+  try {
+    const result = await pool.query(
+      "SELECT * FROM zadania ORDER BY termin ASC, id DESC",
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// API: Dodawanie
+// API: Dodawanie z datą
 app.post("/zadania", async (req, res) => {
-  const { tytul } = req.body;
-  await pool.query("INSERT INTO zadania (tytul) VALUES ($1)", [tytul]);
-  res.status(201).send();
+  const { tytul, termin } = req.body;
+  try {
+    // Jeśli użytkownik nie poda daty, zapisujemy jako null lub aktualny czas
+    await pool.query("INSERT INTO zadania (tytul, termin) VALUES ($1, $2)", [
+      tytul,
+      termin || null,
+    ]);
+    res.status(201).send();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Zmiana statusu (Ukończone / Nieukończone)
+app.patch("/zadania/:id", async (req, res) => {
+  const { id } = req.params;
+  const { zrobione } = req.body;
+  try {
+    await pool.query("UPDATE zadania SET zrobione = $1 WHERE id = $2", [
+      zrobione,
+      id,
+    ]);
+    res.send();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(port, () => console.log(`API działa na porcie ${port}`));
