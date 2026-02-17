@@ -48,5 +48,17 @@ app.post("/api/payments", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// usuwanie wpłaty
+app.delete("/api/payments/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("DELETE FROM payments WHERE id = $1", [id]);
+    res.sendStatus(200);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-app.listen(port, () => console.log(`API działa na porcie ${port}`));
+app.listen(port, "127.0.0.1", () =>
+  console.log(`API działa na porcie ${port}`),
+);
