@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const { Pool } = require("pg");
+const client = require("prom-client");
 
 const app = express();
 const port = 3000; // Port, na którym będzie działać Twoja apka
@@ -14,7 +15,47 @@ const pool = new Pool({
   port: 5432,
 });
 
+// Ustawienia Prometheus
+client.collectDefaultMetrics(); // CPU, memory, event loop, itp.
+
+// Licznik błędów HTTP 500
+const httpErrors = new client.Counter({
+  name: "http_500_total",
+  help: "Total number of HTTP 500 errors",
+});
+
 app.use(express.json());
+
+// Middleware do zliczania błędów
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    if (res.statusCode >= 500) {
+      httpErrors.inc();
+    }
+  });
+  next();
+});
+
+// Health endpoint
+app.get("/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1"); // sprawdzenie DB
+    res.status(200).json({ status: "OK", db: "connected" });
+  } catch (err) {
+    console.error("Health check failed:", err.message);
+    res.status(500).json({ status: "ERROR", db: "disconnected" });
+  }
+});
+
+// Prometheus metrics
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", client.register.contentType);
+  res.end(await client.register.metrics());
+});
+
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
 
 // Pobieranie wpłat i sumy
 app.get("/api/payments", async (req, res) => {
@@ -56,17 +97,6 @@ app.delete("/api/payments/:id", async (req, res) => {
     res.sendStatus(200);
   } catch (err) {
     res.status(500).json({ error: err.message });
-  }
-});
-
-// Health check
-app.get("/health", async (req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.status(200).json({ status: "OK", db: "connected" });
-  } catch (err) {
-    console.error("Health check failed:", err.message);
-    res.status(500).json({ status: "ERROR", db: "disconnected" });
   }
 });
 
