@@ -53,10 +53,6 @@ app.get("/metrics", async (req, res) => {
   res.end(await client.register.metrics());
 });
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
-
 // Pobieranie wpłat i sumy
 app.get("/api/payments", async (req, res) => {
   try {
